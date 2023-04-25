@@ -5,7 +5,8 @@ const moment = require('moment')
 const fs = require('fs/promises')
 require('dotenv').config()
 
-const contactsRouter = require('./routes/api/contacts')
+const authRouter = require('./routes/api/auth-routes')
+const contactsRouter = require('./routes/api/contacts-routes')
 
 const app = express()
 
@@ -22,6 +23,7 @@ app.use(logger(formatsLogger))
 app.use(cors())
 app.use(express.json())
 
+app.use('/api/auth', authRouter)
 app.use('/api/contacts', contactsRouter)
 
 app.use((req, res) => {
