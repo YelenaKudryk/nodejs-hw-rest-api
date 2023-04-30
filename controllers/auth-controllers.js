@@ -2,8 +2,13 @@ const { User } = require("../models/user")
 const { HttpError } = require("../helpers")
 const { controllersWrapper } = require("../decorators")
 const bcrypt = require('bcryptjs')
-const jwt = require('jsonwebtoken');
-const { SECRET_KEY } = process.env;
+const jwt = require('jsonwebtoken')
+const { SECRET_KEY } = process.env
+const gravatar = require('gravatar')
+const fs = require('fs/promises')
+const path = require('path')
+const avatarsDir = path.join(__dirname, '..', 'public', 'avatars')
+const Jimp = require('jimp')
 
 const register = async (req, res, next) => {
     const { email, password } = req.body
@@ -11,9 +16,9 @@ const register = async (req, res, next) => {
     if (user) {
         throw HttpError("409", "Email in use")
     }
-
     const hashPassword = await bcrypt.hash(password, 10)
-    const result = await User.create({...req.body, password: hashPassword})
+    const avatarURL = gravatar.url(email)
+    const result = await User.create({...req.body, password: hashPassword, avatarURL})
     res.status(201).json({email: result.email})
 }
 
@@ -55,12 +60,27 @@ const updateSubscription = async (req, res, next) => {
     throw HttpError(404, "Not found")
     }
     res.json(result)
-  }
+}
+  
+const updateAvatar = async (req, res, next) => {
+    const { _id } = req.user
+    const { path: tempUpload, filename } = req.file
+    const avatarName = `${_id}_${filename}`
+    const resultUpload = path.join(avatarsDir, avatarName)
+    await fs.rename(tempUpload, resultUpload)
+    const avatarURL = path.join("avatars", avatarName)
+    await User.findByIdAndUpdate(_id, { avatarURL })
+    const newAvatarsSize = await Jimp.read(resultUpload)
+    newAvatarsSize.resize(250,250).write(resultUpload)
+    
+    res.json({avatarURL})
+}
 
 module.exports = {
     register: controllersWrapper(register),
     login: controllersWrapper(login),
     getCurrent: controllersWrapper(getCurrent),
     logout: controllersWrapper(logout),
-    updateSubscription: controllersWrapper(updateSubscription)
+    updateSubscription: controllersWrapper(updateSubscription),
+    updateAvatar: controllersWrapper(updateAvatar)
 }
